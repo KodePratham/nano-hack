@@ -26,6 +26,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (mode === 'image-editing' && !inputImage) {
+      return NextResponse.json(
+        { error: 'Input image is required for editing mode' },
+        { status: 400 }
+      );
+    }
+
     if (!process.env.GOOGLE_AI_API_KEY) {
       return NextResponse.json(
         { error: 'Google AI API key not configured' },
@@ -42,6 +49,55 @@ export async function POST(request: NextRequest) {
 
     let contents;
     let modelName = "gemini-2.5-flash-image-preview";
+    let textModelName = "gemini-1.5-flash";
+
+    // Generate caption and description for social media posts
+    let generatedCaption = '';
+    let generatedDescription = '';
+
+    if (mode === 'social-media-post' || mode === 'social-media-post-with-logo') {
+      // Generate text content first
+      const textPrompt = `Create engaging social media content for "${userName}" based on this post description: "${postDescription}"
+
+Please generate:
+1. A short, catchy caption (1-2 sentences, under 100 characters) that would work well as a social media post caption
+2. A longer description (2-3 sentences, 150-250 characters) that provides more context and engagement
+
+Make the content:
+- Engaging and attention-grabbing
+- Appropriate for the business/brand "${userName}"
+- Suitable for multiple social media platforms (Instagram, LinkedIn, Facebook)
+- Include relevant hashtags if appropriate
+- Professional yet approachable tone
+
+Format your response as:
+CAPTION: [your caption here]
+DESCRIPTION: [your description here]`;
+
+      try {
+        const textResponse = await ai.models.generateContent({
+          model: textModelName,
+          contents: [textPrompt],
+        });
+
+        const textContent = textResponse.candidates[0].content.parts[0].text;
+        
+        // Parse the response to extract caption and description
+        const captionMatch = textContent.match(/CAPTION:\s*([\s\S]*?)(?=\nDESCRIPTION:|\n|$)/);
+        const descriptionMatch = textContent.match(/DESCRIPTION:\s*([\s\S]*?)$/);
+        
+        generatedCaption = captionMatch ? captionMatch[1].trim() : '';
+        generatedDescription = descriptionMatch ? descriptionMatch[1].trim() : '';
+
+        console.log('Generated caption:', generatedCaption);
+        console.log('Generated description:', generatedDescription);
+      } catch (error) {
+        console.error('Error generating text content:', error);
+        // Continue with image generation even if text generation fails
+        generatedCaption = `Check out this post from ${userName}!`;
+        generatedDescription = `${userName} shares: ${postDescription}`;
+      }
+    }
 
     if (mode === 'social-media-post') {
       // Use image model for social media post generation
@@ -96,23 +152,26 @@ Create a cohesive design that combines the post content with the brand logo prof
           },
         },
       ];
-    } else {
-      // Image generation modes
-      if (inputImage) {
-        // Image editing mode - text + image to image
-        contents = [
-          { text: prompt },
-          {
-            inlineData: {
-              mimeType: inputImage.mimeType || "image/png",
-              data: inputImage.data,
-            },
+    } else if (mode === 'image-editing') {
+      // Image editing mode - enhance the prompt for better results
+      const editPrompt = `Edit this image based on the following instructions: ${prompt}
+
+Please make the requested changes while maintaining the overall quality and professional appearance of the image. Keep the existing style and composition unless specifically asked to change them.
+
+Instructions: ${prompt}`;
+
+      contents = [
+        { text: editPrompt },
+        {
+          inlineData: {
+            mimeType: inputImage.mimeType || "image/png",
+            data: inputImage.data,
           },
-        ];
-      } else {
-        // Text-to-image mode
-        contents = [prompt];
-      }
+        },
+      ];
+    } else {
+      // Text-to-image mode
+      contents = [prompt];
     }
 
     // Generate content
@@ -145,16 +204,21 @@ Create a cohesive design that combines the post content with the brand logo prof
 
     const result = {
       success: true,
-      prompt: (mode === 'social-media-post' || mode === 'social-media-post-with-logo') 
-        ? `Social media post image for ${userName}: ${postDescription}` 
-        : prompt,
+      prompt: mode === 'image-editing' 
+        ? `Edit: ${prompt}`
+        : (mode === 'social-media-post' || mode === 'social-media-post-with-logo') 
+          ? `Social media post image for ${userName}: ${postDescription}` 
+          : prompt,
       textResponse: textResponse,
       images: generatedImages,
       userName: (mode === 'social-media-post' || mode === 'social-media-post-with-logo') ? userName : undefined,
       postDescription: (mode === 'social-media-post' || mode === 'social-media-post-with-logo') ? postDescription : undefined,
       hasLogo: mode === 'social-media-post-with-logo',
+      generatedCaption: generatedCaption,
+      generatedDescription: generatedDescription,
       metadata: {
         model: modelName,
+        textModel: textModelName,
         numberOfImages: generatedImages.length,
         mode: mode || (inputImage ? 'image-editing' : 'text-to-image'),
         generatedAt: new Date().toISOString()
