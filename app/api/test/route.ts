@@ -1,0 +1,233 @@
+import { GoogleGenAI } from "@google/genai";
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function POST(request: NextRequest) {
+  try {
+    const { prompt, inputImage, logoImage, mode, userName, postDescription } = await request.json();
+
+    if (!prompt && mode !== 'social-media-post' && mode !== 'social-media-post-with-logo') {
+      return NextResponse.json(
+        { error: 'Prompt is required' },
+        { status: 400 }
+      );
+    }
+
+    if ((mode === 'social-media-post' || mode === 'social-media-post-with-logo') && (!userName || !postDescription)) {
+      return NextResponse.json(
+        { error: 'Name and post description are required for social media post generation' },
+        { status: 400 }
+      );
+    }
+
+    if (mode === 'social-media-post-with-logo' && !logoImage) {
+      return NextResponse.json(
+        { error: 'Logo image is required for logo mode' },
+        { status: 400 }
+      );
+    }
+
+    if (!process.env.GOOGLE_AI_API_KEY) {
+      return NextResponse.json(
+        { error: 'Google AI API key not configured' },
+        { status: 500 }
+      );
+    }
+
+    console.log(`Starting ${mode || 'image'} generation with Gemini`);
+
+    // Initialize Google Gen AI
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GOOGLE_AI_API_KEY
+    });
+
+    let contents;
+    let modelName = "gemini-2.5-flash-image-preview";
+
+    if (mode === 'social-media-post') {
+      // Use image model for social media post generation
+      const socialMediaPrompt = `Create a professional social media post image for "${userName}". 
+
+Post topic/description: ${postDescription}
+
+Design requirements:
+- Modern, clean, and visually appealing layout
+- Include the name/brand "${userName}" prominently in the design
+- Professional typography with readable fonts
+- Attractive color scheme that matches the content theme
+- Visual elements, icons, or graphics that relate to the post description
+- Optimized for social media platforms (Instagram, LinkedIn, Facebook)
+- Square or portrait orientation preferred
+- High contrast for text readability
+- Professional but engaging aesthetic
+- Include relevant visual metaphors or symbols related to the content
+
+Make it look like a professional social media post that someone would actually want to share.`;
+
+      contents = [socialMediaPrompt];
+    } else if (mode === 'social-media-post-with-logo') {
+      // Use image model for social media post with logo generation
+      const logoPostPrompt = `Create a professional social media post image for "${userName}" that incorporates the provided logo image. 
+
+Post topic/description: ${postDescription}
+
+Design requirements:
+- Modern, clean, and visually appealing layout
+- Include the name/brand "${userName}" prominently in the design
+- Professional typography with readable fonts
+- Attractive color scheme that matches the content theme
+- Visual elements, icons, or graphics that relate to the post description
+- Optimized for social media platforms (Instagram, LinkedIn, Facebook)
+- Square or portrait orientation preferred
+- High contrast for text readability
+- Professional but engaging aesthetic
+- IMPORTANT: Incorporate the provided logo image seamlessly into the design, preferably in the bottom right corner
+- Ensure the logo is visible but not overwhelming the main content
+- Make sure the logo placement looks natural and professional
+- The logo should complement the overall design aesthetic
+
+Create a cohesive design that combines the post content with the brand logo professionally.`;
+
+      contents = [
+        { text: logoPostPrompt },
+        {
+          inlineData: {
+            mimeType: logoImage.mimeType || "image/png",
+            data: logoImage.data,
+          },
+        },
+      ];
+    } else {
+      // Image generation modes
+      if (inputImage) {
+        // Image editing mode - text + image to image
+        contents = [
+          { text: prompt },
+          {
+            inlineData: {
+              mimeType: inputImage.mimeType || "image/png",
+              data: inputImage.data,
+            },
+          },
+        ];
+      } else {
+        // Text-to-image mode
+        contents = [prompt];
+      }
+    }
+
+    // Generate content
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: contents,
+    });
+
+    console.log('Generation response received');
+
+    // Handle all responses as image generation (including social media posts)
+    const generatedImages = [];
+    let textResponse = '';
+
+    for (const part of response.candidates[0].content.parts) {
+      if (part.text) {
+        textResponse += part.text;
+        console.log('Text response:', part.text);
+      } else if (part.inlineData) {
+        const imageDataUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        
+        generatedImages.push({
+          id: generatedImages.length + 1,
+          imageUrl: imageDataUrl,
+          imageBytes: part.inlineData.data,
+          mimeType: part.inlineData.mimeType || 'image/png'
+        });
+      }
+    }
+
+    const result = {
+      success: true,
+      prompt: (mode === 'social-media-post' || mode === 'social-media-post-with-logo') 
+        ? `Social media post image for ${userName}: ${postDescription}` 
+        : prompt,
+      textResponse: textResponse,
+      images: generatedImages,
+      userName: (mode === 'social-media-post' || mode === 'social-media-post-with-logo') ? userName : undefined,
+      postDescription: (mode === 'social-media-post' || mode === 'social-media-post-with-logo') ? postDescription : undefined,
+      hasLogo: mode === 'social-media-post-with-logo',
+      metadata: {
+        model: modelName,
+        numberOfImages: generatedImages.length,
+        mode: mode || (inputImage ? 'image-editing' : 'text-to-image'),
+        generatedAt: new Date().toISOString()
+      }
+    };
+
+    return NextResponse.json(result);
+
+  } catch (error) {
+    console.error('Generation error:', error);
+    
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
+      if (error.message.includes('quota') || error.message.includes('429')) {
+        return NextResponse.json(
+          { error: 'API quota exceeded. Please try again later.' },
+          { status: 429 }
+        );
+      }
+      if (error.message.includes('safety') || error.message.includes('policy')) {
+        return NextResponse.json(
+          { error: 'Content violates safety guidelines. Please modify your input.' },
+          { status: 400 }
+        );
+      }
+      if (error.message.includes('401') || error.message.includes('authentication')) {
+        return NextResponse.json(
+          { error: 'Invalid API key. Please check your Google AI API key.' },
+          { status: 401 }
+        );
+      }
+      if (error.message.includes('403') || error.message.includes('permission')) {
+        return NextResponse.json(
+          { error: 'API access denied. Please check your API key permissions.' },
+          { status: 403 }
+        );
+      }
+      
+      return NextResponse.json(
+        { error: `Generation failed: ${error.message}` },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Unknown error occurred during generation' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET() {
+  return NextResponse.json({
+    message: 'Post Factory AI Generation API - Gemini Native',
+    status: 'active',
+    version: '4.2.0',
+    models: {
+      image: 'gemini-2.5-flash-image-preview'
+    },
+    endpoints: {
+      generateContent: 'POST /api/test',
+      requiredFields: ['prompt OR (userName + postDescription for social media posts)'],
+      optionalFields: ['inputImage', 'logoImage', 'mode']
+    },
+    capabilities: [
+      'Text-to-Image generation',
+      'Image editing with text prompts',
+      'Social media post image generation',
+      'Branded social media post generation with logo',
+      'Multi-turn conversational editing',
+      'High-fidelity text rendering'
+    ]
+  });
+}
