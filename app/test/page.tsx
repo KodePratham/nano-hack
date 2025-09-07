@@ -158,7 +158,7 @@ export default function TestPage() {
         <div className="text-center mb-8">
           <h1 className="text-4xl font-light mb-2">
             <span className="text-blue-500">Post</span>
-            <span className="text-red-500">Factory</span>
+            <span className="text-red-500">Machine</span>
             <span className="text-gray-700"> Gemini</span>
           </h1>
           <p className="text-gray-600">Test AI image generation and social media post creation with Gemini 2.5 Flash</p>
