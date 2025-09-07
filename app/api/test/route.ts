@@ -210,7 +210,7 @@ Create a cohesive design that combines the post content with the brand logo prof
 
 export async function GET() {
   return NextResponse.json({
-    message: 'Post Factory AI Generation API - Gemini Native',
+    message: 'Post Machine AI Generation API - Gemini Native',
     status: 'active',
     version: '4.2.0',
     models: {

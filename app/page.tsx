@@ -7,7 +7,7 @@ export default function Home() {
           <div className="flex items-center space-x-2">
             <h1 className="text-2xl font-normal">
               <span className="text-blue-500">Post</span>
-              <span className="text-red-500">Factory</span>
+              <span className="text-red-500">Machine</span>
             </h1>
           </div>
           <button className="text-blue-600 hover:bg-blue-50 px-4 py-2 rounded-md transition-colors">
@@ -22,7 +22,7 @@ export default function Home() {
         <div className="mb-8">
           <h1 className="text-6xl font-light mb-4">
             <span className="text-blue-500">Post</span>
-            <span className="text-red-500">Factory</span>
+            <span className="text-red-500">Machine</span>
           </h1>
           <div className="flex justify-center space-x-1">
             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -111,7 +111,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-gray-200 py-8">
         <div className="max-w-6xl mx-auto px-6 text-center">
-          <p className="text-gray-500 text-sm mb-4">© 2024 Post Factory</p>
+          <p className="text-gray-500 text-sm mb-4">© 2024 Post Machine</p>
           <div className="flex justify-center space-x-8 text-sm">
             <a href="#" className="text-gray-600 hover:text-blue-600">Privacy</a>
             <a href="#" className="text-gray-600 hover:text-blue-600">Terms</a>
