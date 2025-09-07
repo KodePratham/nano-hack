@@ -10,6 +10,7 @@ interface UserProfile {
   targetAudience: string[]
   postTypes: string[]
   businessDescription: string
+  brandColors: string[]
   logo?: string
   completedAt: string
 }
@@ -26,6 +27,7 @@ export default function Home() {
     targetAudience: [] as string[],
     postTypes: [] as string[],
     businessDescription: '',
+    brandColors: [] as string[],
     logo: ''
   })
   const [logoFile, setLogoFile] = useState<File | null>(null)
@@ -130,7 +132,7 @@ export default function Home() {
   }
 
   const handleNext = () => {
-    if (currentStep < 8) {
+    if (currentStep < 9) {
       setCurrentStep(currentStep + 1)
     }
   }
@@ -162,6 +164,7 @@ export default function Home() {
       targetAudience: [],
       postTypes: [],
       businessDescription: '',
+      brandColors: [],
       logo: ''
     })
     setOtherInputs({
@@ -177,6 +180,33 @@ export default function Home() {
     setHasProfile(false)
   }
 
+  const handleBrandColorToggle = (color: string) => {
+    setFormData(prev => ({
+      ...prev,
+      brandColors: prev.brandColors.includes(color)
+        ? prev.brandColors.filter(c => c !== color)
+        : prev.brandColors.length < 5
+        ? [...prev.brandColors, color]
+        : prev.brandColors
+    }))
+  }
+
+  const handleCustomColorAdd = (color: string) => {
+    if (color && !formData.brandColors.includes(color) && formData.brandColors.length < 5) {
+      setFormData(prev => ({
+        ...prev,
+        brandColors: [...prev.brandColors, color]
+      }))
+    }
+  }
+
+  const handleCustomColorRemove = (color: string) => {
+    setFormData(prev => ({
+      ...prev,
+      brandColors: prev.brandColors.filter(c => c !== color)
+    }))
+  }
+
   const canProceed = () => {
     switch (currentStep) {
       case 1: return formData.name.trim() !== ''
@@ -186,7 +216,8 @@ export default function Home() {
       case 5: return formData.targetAudience.length > 0
       case 6: return formData.postTypes.length > 0
       case 7: return formData.visualStyle !== ''
-      case 8: return formData.businessDescription.trim() !== ''
+      case 8: return formData.brandColors.length > 0
+      case 9: return formData.businessDescription.trim() !== ''
       default: return false
     }
   }
@@ -249,6 +280,14 @@ export default function Home() {
     'Behind-the-scenes',
     'Quotes & mottos',
     'Memes & fun posts'
+  ]
+
+  const predefinedColors = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+    '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+    '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#D7BDE2',
+    '#A3E4D7', '#F9E79F', '#FADBD8', '#D5DBDB', '#2C3E50',
+    '#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6'
   ]
 
   return (
@@ -355,13 +394,13 @@ export default function Home() {
                 {/* Progress Bar */}
                 <div className="mb-8">
                   <div className="flex justify-between text-sm text-gray-500 mb-2">
-                    <span>Step {currentStep} of 8</span>
-                    <span>{Math.round((currentStep / 8) * 100)}% complete</span>
+                    <span>Step {currentStep} of 9</span>
+                    <span>{Math.round((currentStep / 9) * 100)}% complete</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(currentStep / 8) * 100}%` }}
+                      style={{ width: `${(currentStep / 9) * 100}%` }}
                     ></div>
                   </div>
                 </div>
@@ -617,8 +656,81 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Step 8: Business Description */}
+                {/* Step 8: Brand Colors */}
                 {currentStep === 8 && (
+                  <div className="text-left">
+                    <h3 className="text-2xl font-medium text-gray-900 mb-2">Brand Colors</h3>
+                    <p className="text-gray-600 mb-2">Select colors that represent your brand</p>
+                    <p className="text-sm text-blue-600 mb-6">Choose up to 5 colors that will be used in your posts</p>
+                    
+                    {/* Predefined Colors */}
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Popular Brand Colors</h4>
+                      <div className="grid grid-cols-10 gap-2">
+                        {predefinedColors.map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => handleBrandColorToggle(color)}
+                            disabled={!formData.brandColors.includes(color) && formData.brandColors.length >= 5}
+                            className={`w-8 h-8 rounded-full border-2 transition-all duration-200 ${
+                              formData.brandColors.includes(color)
+                                ? 'border-gray-900 scale-110 shadow-lg'
+                                : 'border-gray-300 hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed'
+                            }`}
+                            style={{ backgroundColor: color }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom Color Input */}
+                    <div className="mb-6">
+                      <h4 className="text-sm font-medium text-gray-700 mb-3">Add Custom Color</h4>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="color"
+                          onChange={(e) => handleCustomColorAdd(e.target.value.toUpperCase())}
+                          className="w-12 h-12 border border-gray-300 rounded-lg cursor-pointer"
+                          disabled={formData.brandColors.length >= 5}
+                        />
+                        <span className="text-sm text-gray-500">
+                          {formData.brandColors.length >= 5 ? 'Maximum 5 colors selected' : 'Click to add a custom color'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Selected Colors */}
+                    {formData.brandColors.length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="text-sm font-medium text-gray-700 mb-3">Selected Brand Colors</h4>
+                        <div className="flex flex-wrap gap-3">
+                          {formData.brandColors.map((color, index) => (
+                            <div key={index} className="flex items-center space-x-2 bg-gray-50 rounded-lg p-2">
+                              <div
+                                className="w-6 h-6 rounded-full border border-gray-300"
+                                style={{ backgroundColor: color }}
+                              />
+                              <span className="text-sm font-mono text-gray-700">{color}</span>
+                              <button
+                                onClick={() => handleCustomColorRemove(color)}
+                                className="text-red-500 hover:text-red-700 text-sm"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-sm text-gray-500 mt-2">
+                          These colors will be used to create cohesive, on-brand social media posts.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Step 9: Business Description */}
+                {currentStep === 9 && (
                   <div className="text-left">
                     <h3 className="text-2xl font-medium text-gray-900 mb-2">Tell Us About Your Business</h3>
                     <p className="text-gray-600 mb-6">Describe your business in a few words</p>
@@ -655,7 +767,7 @@ export default function Home() {
                       Skip for now
                     </button>
                     
-                    {currentStep < 8 ? (
+                    {currentStep < 9 ? (
                       <button
                         onClick={handleNext}
                         disabled={!canProceed()}

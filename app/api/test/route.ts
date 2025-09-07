@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, inputImage, logoImage, mode, userName, postDescription } = await request.json();
+    const { prompt, inputImage, logoImage, mode, userName, postDescription, brandColors } = await request.json();
 
     if (!prompt && mode !== 'social-media-post' && mode !== 'social-media-post-with-logo') {
       return NextResponse.json(
@@ -101,6 +101,10 @@ DESCRIPTION: [your description here]`;
 
     if (mode === 'social-media-post') {
       // Use image model for social media post generation
+      const colorScheme = brandColors && brandColors.length > 0 
+        ? `Use these brand colors in the design: ${brandColors.join(', ')}. Incorporate these colors harmoniously throughout the design.`
+        : 'Use an attractive, professional color scheme that matches the content theme.';
+
       const socialMediaPrompt = `Create a professional social media post image for "${userName}". 
 
 Post topic/description: ${postDescription}
@@ -109,7 +113,7 @@ Design requirements:
 - Modern, clean, and visually appealing layout
 - Include the name/brand "${userName}" prominently in the design
 - Professional typography with readable fonts
-- Attractive color scheme that matches the content theme
+- ${colorScheme}
 - Visual elements, icons, or graphics that relate to the post description
 - Optimized for social media platforms (Instagram, LinkedIn, Facebook)
 - Square or portrait orientation preferred
@@ -122,6 +126,10 @@ Make it look like a professional social media post that someone would actually w
       contents = [socialMediaPrompt];
     } else if (mode === 'social-media-post-with-logo') {
       // Use image model for social media post with logo generation
+      const colorScheme = brandColors && brandColors.length > 0 
+        ? `Use these brand colors in the design: ${brandColors.join(', ')}. Incorporate these colors harmoniously throughout the design, ensuring they complement the logo.`
+        : 'Use an attractive, professional color scheme that matches the content theme and complements the logo.';
+
       const logoPostPrompt = `Create a professional social media post image for "${userName}" that incorporates the provided logo image. 
 
 Post topic/description: ${postDescription}
@@ -130,7 +138,7 @@ Design requirements:
 - Modern, clean, and visually appealing layout
 - Include the name/brand "${userName}" prominently in the design
 - Professional typography with readable fonts
-- Attractive color scheme that matches the content theme
+- ${colorScheme}
 - Visual elements, icons, or graphics that relate to the post description
 - Optimized for social media platforms (Instagram, LinkedIn, Facebook)
 - Square or portrait orientation preferred

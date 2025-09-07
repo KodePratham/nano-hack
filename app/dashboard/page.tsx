@@ -10,6 +10,7 @@ interface UserProfile {
   targetAudience: string[]
   postTypes: string[]
   businessDescription: string
+  brandColors: string[]
   logo?: string
   completedAt: string
 }
@@ -216,6 +217,37 @@ export default function DashboardPage() {
     }
   }
 
+  const handleBrandColorToggle = (color: string) => {
+    if (editedProfile) {
+      setEditedProfile(prev => prev ? {
+        ...prev,
+        brandColors: (prev.brandColors || []).includes(color)
+          ? (prev.brandColors || []).filter(c => c !== color)
+          : (prev.brandColors || []).length < 5
+          ? [...(prev.brandColors || []), color]
+          : prev.brandColors || []
+      } : null)
+    }
+  }
+
+  const handleCustomColorAdd = (color: string) => {
+    if (editedProfile && color && !(editedProfile.brandColors || []).includes(color) && (editedProfile.brandColors?.length || 0) < 5) {
+      setEditedProfile(prev => prev ? {
+        ...prev,
+        brandColors: [...(prev.brandColors || []), color]
+      } : null)
+    }
+  }
+
+  const handleCustomColorRemove = (color: string) => {
+    if (editedProfile) {
+      setEditedProfile(prev => prev ? {
+        ...prev,
+        brandColors: (prev.brandColors || []).filter(c => c !== color)
+      } : null)
+    }
+  }
+
   const saveImageToStorage = (image: GeneratedImage, result: GenerationResult, isEdit: boolean = false, originalPrompt?: string) => {
     const savedImage: SavedImage = {
       id: `${Date.now()}-${image.id}`,
@@ -262,6 +294,7 @@ export default function DashboardPage() {
         userName: profile.name,
         postDescription: postDescription.trim(),
         mode: profile.logo ? 'social-media-post-with-logo' : 'social-media-post',
+        brandColors: profile.brandColors || [],
         logoImage: profile.logo ? {
           data: profile.logo.split(',')[1], // Remove data:image/type;base64, prefix
           mimeType: 'image/png'
@@ -440,6 +473,14 @@ export default function DashboardPage() {
     'Lifestyle/inspirational', 'Behind-the-scenes', 'Quotes & mottos', 'Memes & fun posts'
   ]
 
+  const predefinedColors = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+    '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
+    '#F8C471', '#82E0AA', '#F1948A', '#85C1E9', '#D7BDE2',
+    '#A3E4D7', '#F9E79F', '#FADBD8', '#D5DBDB', '#2C3E50',
+    '#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6'
+  ]
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -523,7 +564,7 @@ export default function DashboardPage() {
                     Edit Profile
                   </button>
                 </div>
-                <div className="grid md:grid-cols-3 gap-4 text-sm">
+                <div className="grid md:grid-cols-3 gap-4 text-sm mb-4">
                   <div>
                     <span className="text-gray-500">Business:</span>
                     <span className="ml-2 font-medium">{profile.name}</span>
@@ -537,6 +578,23 @@ export default function DashboardPage() {
                     <span className="ml-2 font-medium">{profile.visualStyle}</span>
                   </div>
                 </div>
+                
+                {/* Brand Colors Preview */}
+                {profile.brandColors && profile.brandColors.length > 0 && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-gray-500 text-sm">Brand Colors:</span>
+                    <div className="flex space-x-1">
+                      {profile.brandColors.map((color, index) => (
+                        <div
+                          key={index}
+                          className="w-6 h-6 rounded-full border border-gray-300"
+                          style={{ backgroundColor: color }}
+                          title={color}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1167,6 +1225,72 @@ export default function DashboardPage() {
                         />
                         <div className="text-sm text-gray-600">
                           <p>✅ Logo {logoFile ? 'updated' : 'current'}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Brand Colors */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Brand Colors (up to 5)</label>
+                    
+                    {/* Predefined Colors */}
+                    <div className="mb-4">
+                      <h4 className="text-xs font-medium text-gray-600 mb-2">Popular Brand Colors</h4>
+                      <div className="grid grid-cols-10 gap-2">
+                        {predefinedColors.map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => handleBrandColorToggle(color)}
+                            disabled={!(editedProfile.brandColors || []).includes(color) && (editedProfile.brandColors?.length || 0) >= 5}
+                            className={`w-6 h-6 rounded-full border-2 transition-all duration-200 ${
+                              (editedProfile.brandColors || []).includes(color)
+                                ? 'border-gray-900 scale-110 shadow-lg'
+                                : 'border-gray-300 hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed'
+                            }`}
+                            style={{ backgroundColor: color }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom Color Input */}
+                    <div className="mb-4">
+                      <h4 className="text-xs font-medium text-gray-600 mb-2">Add Custom Color</h4>
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="color"
+                          onChange={(e) => handleCustomColorAdd(e.target.value.toUpperCase())}
+                          className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
+                          disabled={(editedProfile.brandColors?.length || 0) >= 5}
+                        />
+                        <span className="text-xs text-gray-500">
+                          {(editedProfile.brandColors?.length || 0) >= 5 ? 'Maximum 5 colors selected' : 'Click to add a custom color'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Selected Colors */}
+                    {(editedProfile.brandColors || []).length > 0 && (
+                      <div>
+                        <h4 className="text-xs font-medium text-gray-600 mb-2">Selected Brand Colors</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {(editedProfile.brandColors || []).map((color, index) => (
+                            <div key={index} className="flex items-center space-x-2 bg-gray-50 rounded p-2">
+                              <div
+                                className="w-4 h-4 rounded-full border border-gray-300"
+                                style={{ backgroundColor: color }}
+                              />
+                              <span className="text-xs font-mono text-gray-700">{color}</span>
+                              <button
+                                onClick={() => handleCustomColorRemove(color)}
+                                className="text-red-500 hover:text-red-700 text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
