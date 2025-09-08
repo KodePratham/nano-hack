@@ -12,6 +12,21 @@ interface UserProfile {
   businessDescription: string
   brandColors: string[]
   logo?: string
+  apiKey?: string
+  completedAt: string
+}
+
+interface UserProfile {
+  name: string
+  industry: string
+  goal: string
+  brandPersonality: string[]
+  visualStyle: string
+  targetAudience: string[]
+  postTypes: string[]
+  businessDescription: string
+  brandColors: string[]
+  logo?: string
   completedAt: string
 }
 
@@ -28,7 +43,8 @@ export default function Home() {
     postTypes: [] as string[],
     businessDescription: '',
     brandColors: [] as string[],
-    logo: ''
+    logo: '',
+    apiKey: ''
   })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [hasProfile, setHasProfile] = useState(false)
@@ -132,7 +148,7 @@ export default function Home() {
   }
 
   const handleNext = () => {
-    if (currentStep < 9) {
+    if (currentStep < 10) {
       setCurrentStep(currentStep + 1)
     }
   }
@@ -165,7 +181,8 @@ export default function Home() {
       postTypes: [],
       businessDescription: '',
       brandColors: [],
-      logo: ''
+      logo: '',
+      apiKey: ''
     })
     setOtherInputs({
       industry: '',
@@ -218,6 +235,7 @@ export default function Home() {
       case 7: return formData.visualStyle !== ''
       case 8: return formData.brandColors.length > 0
       case 9: return formData.businessDescription.trim() !== ''
+      case 10: return formData.apiKey.trim() !== ''
       default: return false
     }
   }
@@ -394,13 +412,13 @@ export default function Home() {
                 {/* Progress Bar */}
                 <div className="mb-8">
                   <div className="flex justify-between text-sm text-gray-500 mb-2">
-                    <span>Step {currentStep} of 9</span>
-                    <span>{Math.round((currentStep / 9) * 100)}% complete</span>
+                    <span>Step {currentStep} of 10</span>
+                    <span>{Math.round((currentStep / 10) * 100)}% complete</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div 
                       className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ width: `${(currentStep / 9) * 100}%` }}
+                      style={{ width: `${(currentStep / 10) * 100}%` }}
                     ></div>
                   </div>
                 </div>
@@ -749,6 +767,43 @@ export default function Home() {
                   </div>
                 )}
 
+                {/* Step 10: API Key */}
+                {currentStep === 10 && (
+                  <div className="text-left">
+                    <h3 className="text-2xl font-medium text-gray-900 mb-2">Add Your API Key</h3>
+                    <p className="text-gray-600 mb-6">Add your Google AI API key to start generating images</p>
+                    
+                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h4 className="text-sm font-medium text-blue-900 mb-2">How to get your API key:</h4>
+                      <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+                        <li>Visit <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="underline font-medium">Google AI Studio</a></li>
+                        <li>Sign in with your Google account</li>
+                        <li>Click "Create API Key"</li>
+                        <li>Copy the key and paste it below</li>
+                      </ol>
+                    </div>
+                    
+                    <input
+                      type="password"
+                      value={formData.apiKey}
+                      onChange={(e) => handleInputChange('apiKey', e.target.value)}
+                      placeholder="Enter your API key (AIza...)"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                    
+                    <p className="text-sm text-gray-500 mt-2">
+                      Your API key is stored locally on your device and is never shared. It's required to generate AI images.
+                    </p>
+                    
+                    {formData.apiKey && (
+                      <div className="mt-3 flex items-center text-sm text-green-600">
+                        <span className="mr-1">✅</span>
+                        API key added successfully
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Navigation Buttons */}
                 <div className="flex justify-between mt-8 pt-6 border-t">
                   <button
@@ -767,7 +822,7 @@ export default function Home() {
                       Skip for now
                     </button>
                     
-                    {currentStep < 9 ? (
+                    {currentStep < 10 ? (
                       <button
                         onClick={handleNext}
                         disabled={!canProceed()}

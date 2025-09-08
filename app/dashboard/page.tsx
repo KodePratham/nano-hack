@@ -12,6 +12,7 @@ interface UserProfile {
   businessDescription: string
   brandColors: string[]
   logo?: string
+  apiKey?: string
   completedAt: string
 }
 
@@ -308,6 +309,11 @@ export default function DashboardPage() {
       return
     }
 
+    if (!profile.apiKey) {
+      setError('Please add your Google AI API key in your profile settings')
+      return
+    }
+
     setIsRemasteringImage(imageId)
     setError(null)
 
@@ -350,6 +356,7 @@ export default function DashboardPage() {
         },
         mode: 'image-editing',
         brandColors: profile.brandColors || [],
+        apiKey: profile.apiKey,
         logoImage: profile.logo ? {
           data: profile.logo.split(',')[1],
           mimeType: 'image/png'
@@ -414,6 +421,11 @@ export default function DashboardPage() {
       return
     }
 
+    if (!profile.apiKey) {
+      setError('Please add your Google AI API key in your profile settings')
+      return
+    }
+
     setIsGenerating(true)
     setError(null)
     setGenerationResult(null)
@@ -424,6 +436,7 @@ export default function DashboardPage() {
         postDescription: postDescription.trim(),
         mode: profile.logo ? 'social-media-post-with-logo' : 'social-media-post',
         brandColors: profile.brandColors || [],
+        apiKey: profile.apiKey,
         logoImage: profile.logo ? {
           data: profile.logo.split(',')[1], // Remove data:image/type;base64, prefix
           mimeType: 'image/png'
@@ -478,6 +491,11 @@ export default function DashboardPage() {
       return
     }
 
+    if (!profile?.apiKey) {
+      setError('Please add your Google AI API key in your profile settings')
+      return
+    }
+
     setIsEditingImage(true)
     setError(null)
 
@@ -500,7 +518,8 @@ export default function DashboardPage() {
           data: base64,
           mimeType: 'image/png'
         },
-        mode: 'image-editing'
+        mode: 'image-editing',
+        apiKey: profile.apiKey
       }
 
       const editResponse = await fetch('/api/test', {
@@ -757,7 +776,7 @@ export default function DashboardPage() {
 
                 <button
                   onClick={handleGeneratePost}
-                  disabled={!postDescription.trim() || isGenerating || !profile}
+                  disabled={!postDescription.trim() || isGenerating || !profile || !profile.apiKey}
                   className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
                 >
                   {isGenerating ? (
@@ -765,10 +784,26 @@ export default function DashboardPage() {
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                       Generating Post...
                     </div>
+                  ) : !profile?.apiKey ? (
+                    'Add API Key to Generate'
                   ) : (
                     `Generate Post ${profile?.logo ? 'with Logo' : ''}`
                   )}
                 </button>
+                
+                {!profile?.apiKey && (
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-yellow-800 text-sm">
+                      <strong>API Key Required:</strong> Please add your Google AI API key in your profile to generate images.{' '}
+                      <button
+                        onClick={() => setIsEditing(true)}
+                        className="text-blue-600 hover:text-blue-700 underline"
+                      >
+                        Add API Key
+                      </button>
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1118,7 +1153,7 @@ export default function DashboardPage() {
                     
                     <button
                       onClick={() => handleRemasterImage(image.id, image.src)}
-                      disabled={isRemasteringImage === image.id || !profile}
+                      disabled={isRemasteringImage === image.id || !profile || !profile.apiKey}
                       className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                     >
                       {isRemasteringImage === image.id ? (
@@ -1126,16 +1161,22 @@ export default function DashboardPage() {
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                           Remastering...
                         </>
+                      ) : !profile?.apiKey ? (
+                        'Add API Key to Remaster'
                       ) : (
                         'Remaster for My Brand'
                       )}
                     </button>
                     
-                    {!profile && (
+                    {!profile ? (
                       <p className="text-xs text-gray-500 mt-2 text-center">
                         Complete your profile to remaster
                       </p>
-                    )}
+                    ) : !profile.apiKey ? (
+                      <p className="text-xs text-yellow-600 mt-2 text-center">
+                        Add API key in profile to remaster
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               ))}
@@ -1395,6 +1436,28 @@ export default function DashboardPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
                       rows={3}
                     />
+                  </div>
+
+                  {/* API Key */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Google AI API Key</label>
+                    <input
+                      type="password"
+                      value={editedProfile.apiKey || ''}
+                      onChange={(e) => handleInputChange('apiKey', e.target.value)}
+                      placeholder="Enter your Google AI API key (AIza...)"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+                    />
+                    <div className="mt-2 text-sm text-gray-600">
+                      <p className="mb-1">🔑 <strong>Required:</strong> Get your free API key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 underline">Google AI Studio</a></p>
+                      <p className="text-gray-500">Your API key is stored locally and never shared. It's used to generate images through Google's AI services.</p>
+                    </div>
+                    {editedProfile.apiKey && (
+                      <div className="mt-2 flex items-center text-sm text-green-600">
+                        <span className="mr-1">✅</span>
+                        API key configured
+                      </div>
+                    )}
                   </div>
 
                   {/* Logo Upload */}

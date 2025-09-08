@@ -14,13 +14,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { prompt, inputImage, logoImage, mode, userName, postDescription, brandColors } = requestBody;
+    const { prompt, inputImage, logoImage, mode, userName, postDescription, brandColors, apiKey } = requestBody;
 
     console.log('Request mode:', mode);
     console.log('Has prompt:', !!prompt);
     console.log('Has inputImage:', !!inputImage);
     console.log('Has userName:', !!userName);
     console.log('Has postDescription:', !!postDescription);
+    console.log('Has apiKey:', !!apiKey);
+
+    // Check for API key - either from user or environment
+    const googleApiKey = apiKey || process.env.GOOGLE_AI_API_KEY;
+    if (!googleApiKey) {
+      return NextResponse.json(
+        { error: 'Google AI API key is required. Please add your API key in your profile settings.' },
+        { status: 400 }
+      );
+    }
 
     if (!prompt && mode !== 'social-media-post' && mode !== 'social-media-post-with-logo') {
       return NextResponse.json(
@@ -50,18 +60,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!process.env.GOOGLE_AI_API_KEY) {
-      return NextResponse.json(
-        { error: 'Google AI API key not configured' },
-        { status: 500 }
-      );
-    }
-
     console.log(`Starting ${mode || 'image'} generation with Gemini`);
 
-    // Initialize Google Gen AI
+    // Initialize Google Gen AI with user's API key or environment fallback
     const ai = new GoogleGenAI({
-      apiKey: process.env.GOOGLE_AI_API_KEY
+      apiKey: googleApiKey
     });
 
     let contents;
