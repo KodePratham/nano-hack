@@ -81,6 +81,29 @@ export default function DashboardPage() {
   // New state for saved images
   const [savedImages, setSavedImages] = useState<SavedImage[]>([])
 
+  // New states for content library
+  const [isRemasteringImage, setIsRemasteringImage] = useState<string | null>(null)
+  const [contentLibraryImages] = useState([
+    { 
+      id: 'cantiffin', 
+      src: '/content/cantiffin.png', 
+      name: 'Cantiffin',
+      description: 'Food delivery service design'
+    },
+    { 
+      id: 'mockup', 
+      src: '/content/mockup.png', 
+      name: 'Mockup Design',
+      description: 'Product mockup template'
+    },
+    { 
+      id: 'newyear', 
+      src: '/content/newyear.jpg', 
+      name: 'New Year',
+      description: 'New Year celebration design'
+    }
+  ])
+
   useEffect(() => {
     // Load user profile from localStorage
     const savedProfile = localStorage.getItem('postMachineProfile')
@@ -277,6 +300,85 @@ export default function DashboardPage() {
   const clearAllImages = () => {
     setSavedImages([])
     localStorage.removeItem('postMachineImages')
+  }
+
+  const handleRemasterImage = async (imageId: string, imageSrc: string) => {
+    if (!profile) {
+      setError('Please complete your profile first')
+      return
+    }
+
+    setIsRemasteringImage(imageId)
+    setError(null)
+
+    try {
+      // Convert image to base64
+      const response = await fetch(imageSrc)
+      const blob = await response.blob()
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const result = reader.result as string
+          resolve(result.split(',')[1]) // Remove data:image/type;base64, prefix
+        }
+        reader.readAsDataURL(blob)
+      })
+
+      const requestBody = {
+        prompt: `Remaster and redesign this image to match the brand identity of ${profile.name}, a ${profile.industry} business. 
+      
+
+Transform this image to:
+- Incorporate the brand's visual style and personality
+- Use the brand colors harmoniously
+- Make it suitable for the target audience
+- Maintain professional quality while reflecting the brand identity
+- ${profile.logo ? 'Include the brand logo naturally in the design' : 'Focus on typography and visual elements that represent the brand'}
+
+Keep the core concept but make it uniquely suited for ${profile.name}'s brand.`,
+        inputImage: {
+          data: base64,
+          mimeType: imageSrc.endsWith('.jpg') ? 'image/jpeg' : 'image/png'
+        },
+        mode: 'image-editing',
+        brandColors: profile.brandColors || [],
+        logoImage: profile.logo ? {
+          data: profile.logo.split(',')[1],
+          mimeType: 'image/png'
+        } : null
+      }
+
+      const remasterResponse = await fetch('/api/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      const result = await remasterResponse.json()
+
+      if (!remasterResponse.ok) {
+        throw new Error(result.error || 'Failed to remaster image')
+      }
+
+      if (result.success && result.images.length > 0) {
+        // Save remastered images to localStorage
+        result.images.forEach((image: GeneratedImage) => {
+          saveImageToStorage(image, result, false)
+        })
+        
+        // Switch to images tab to show results
+        setActiveSection('images')
+      } else {
+        throw new Error(result.error || 'Remaster failed')
+      }
+    } catch (err) {
+      console.error('Remaster error:', err)
+      setError(err instanceof Error ? err.message : 'An unknown error occurred during remastering')
+    } finally {
+      setIsRemasteringImage(null)
+    }
   }
 
   const handleGeneratePost = async () => {
@@ -960,53 +1062,114 @@ export default function DashboardPage() {
 
         {/* Library Section */}
         {activeSection === 'library' && (
-          <div className="text-center py-16">
-            <div className="w-24 h-24 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
-              <span className="text-white text-4xl">📚</span>
-            </div>
-            <h2 className="text-3xl font-light text-gray-900 mb-4">
-              Content Library Coming Soon
-            </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-8">
-              Soon you'll be able to organize your content into campaigns, create content calendars, and access advanced analytics.
-            </p>
-            
-            <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-              <div className="bg-white rounded-lg shadow-sm border p-6">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                  <span className="text-purple-600 text-2xl">📅</span>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Content Calendar</h3>
-                <p className="text-gray-600 text-sm">Plan and schedule your social media content in advance</p>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm border p-6">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                  <span className="text-blue-600 text-2xl">🎯</span>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Campaign Manager</h3>
-                <p className="text-gray-600 text-sm">Organize images into marketing campaigns and themes</p>
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm border p-6">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4 mx-auto">
-                  <span className="text-green-600 text-2xl">📊</span>
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Analytics</h3>
-                <p className="text-gray-600 text-sm">Track performance and engagement metrics</p>
-              </div>
+          <div className="space-y-8">
+            {/* Header */}
+            <div>
+              <h2 className="text-2xl font-semibold text-gray-900 mb-2">Content Library</h2>
+              <p className="text-gray-600">Professional templates you can customize for your brand</p>
             </div>
 
-            <div className="mt-8 p-6 bg-blue-50 rounded-lg max-w-2xl mx-auto">
-              <p className="text-blue-800 text-sm mb-3">
-                <strong>Note:</strong> Your generated images are saved in the "Generated Images" section.
+            {/* Content Library Images */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {contentLibraryImages.map((image) => (
+                <div key={image.id} className="bg-white rounded-lg shadow-sm border overflow-hidden">
+                  <div className="aspect-square relative">
+                    <img
+                      src={image.src}
+                      alt={image.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  
+                  <div className="p-4">
+                    <h3 className="font-medium text-gray-900 text-lg mb-1">
+                      {image.name}
+                    </h3>
+                    <p className="text-gray-600 text-sm mb-4">
+                      {image.description}
+                    </p>
+                    
+                    <button
+                      onClick={() => handleRemasterImage(image.id, image.src)}
+                      disabled={isRemasteringImage === image.id || !profile}
+                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                    >
+                      {isRemasteringImage === image.id ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Remastering...
+                        </>
+                      ) : (
+                        'Remaster for My Brand'
+                      )}
+                    </button>
+                    
+                    {!profile && (
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        Complete your profile to remaster
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-700 text-sm">{error}</p>
+              </div>
+            )}
+
+            {/* Coming Soon Section */}
+            <div className="mt-12 text-center py-16 border-t border-gray-200">
+              <div className="w-24 h-24 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <span className="text-white text-4xl">📚</span>
+              </div>
+              <h3 className="text-2xl font-light text-gray-900 mb-4">
+                More Features Coming Soon
+              </h3>
+              <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-8">
+                Soon you'll be able to organize your content into campaigns, create content calendars, and access advanced analytics.
               </p>
-              <button
-                onClick={() => setActiveSection('images')}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
-              >
-                View Generated Images
-              </button>
+              
+              <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+                <div className="bg-white rounded-lg shadow-sm border p-6">
+                  <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4 mx-auto">
+                    <span className="text-purple-600 text-2xl">📅</span>
+                  </div>
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">Content Calendar</h4>
+                  <p className="text-gray-600 text-sm">Plan and schedule your social media content in advance</p>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm border p-6">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4 mx-auto">
+                    <span className="text-blue-600 text-2xl">🎯</span>
+                  </div>
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">Campaign Manager</h4>
+                  <p className="text-gray-600 text-sm">Organize images into marketing campaigns and themes</p>
+                </div>
+
+                <div className="bg-white rounded-lg shadow-sm border p-6">
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4 mx-auto">
+                    <span className="text-green-600 text-2xl">📊</span>
+                  </div>
+                  <h4 className="text-lg font-medium text-gray-900 mb-2">Analytics</h4>
+                  <p className="text-gray-600 text-sm">Track performance and engagement metrics</p>
+                </div>
+              </div>
+
+              <div className="mt-8 p-6 bg-blue-50 rounded-lg max-w-2xl mx-auto">
+                <p className="text-blue-800 text-sm mb-3">
+                  <strong>Note:</strong> Your generated and remastered images are saved in the "Generated Images" section.
+                </p>
+                <button
+                  onClick={() => setActiveSection('images')}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+                >
+                  View Generated Images
+                </button>
+              </div>
             </div>
           </div>
         )}
