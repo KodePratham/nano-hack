@@ -312,33 +312,41 @@ export default function DashboardPage() {
     setError(null)
 
     try {
+      console.log('Starting remaster for image:', imageId, imageSrc)
+      
       // Convert image to base64
       const response = await fetch(imageSrc)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
+      }
+      
       const blob = await response.blob()
-      const base64 = await new Promise<string>((resolve) => {
+      console.log('Image blob size:', blob.size, 'type:', blob.type)
+      
+      const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = () => {
           const result = reader.result as string
-          resolve(result.split(',')[1]) // Remove data:image/type;base64, prefix
+          if (result) {
+            resolve(result.split(',')[1]) // Remove data:image/type;base64, prefix
+          } else {
+            reject(new Error('Failed to convert image to base64'))
+          }
         }
+        reader.onerror = () => reject(new Error('Failed to read image file'))
         reader.readAsDataURL(blob)
       })
 
+      console.log('Base64 conversion successful, length:', base64.length)
+
+      // Create a concise prompt
+      const remasterPrompt = `Remaster this image for ${profile.name}, a ${profile.industry} business. Style: ${profile.visualStyle}. Brand: ${profile.brandPersonality.join(', ')}. Target: ${profile.targetAudience.join(', ')}. Make it professional and on-brand.`
+
       const requestBody = {
-        prompt: `Remaster and redesign this image to match the brand identity of ${profile.name}, a ${profile.industry} business. 
-      
-
-Transform this image to:
-- Incorporate the brand's visual style and personality
-- Use the brand colors harmoniously
-- Make it suitable for the target audience
-- Maintain professional quality while reflecting the brand identity
-- ${profile.logo ? 'Include the brand logo naturally in the design' : 'Focus on typography and visual elements that represent the brand'}
-
-Keep the core concept but make it uniquely suited for ${profile.name}'s brand.`,
+        prompt: remasterPrompt,
         inputImage: {
           data: base64,
-          mimeType: imageSrc.endsWith('.jpg') ? 'image/jpeg' : 'image/png'
+          mimeType: imageSrc.endsWith('.jpg') || imageSrc.endsWith('.jpeg') ? 'image/jpeg' : 'image/png'
         },
         mode: 'image-editing',
         brandColors: profile.brandColors || [],
@@ -348,6 +356,8 @@ Keep the core concept but make it uniquely suited for ${profile.name}'s brand.`,
         } : null
       }
 
+      console.log('Sending request with prompt length:', remasterPrompt.length)
+
       const remasterResponse = await fetch('/api/test', {
         method: 'POST',
         headers: {
@@ -356,13 +366,25 @@ Keep the core concept but make it uniquely suited for ${profile.name}'s brand.`,
         body: JSON.stringify(requestBody),
       })
 
-      const result = await remasterResponse.json()
+      console.log('Response status:', remasterResponse.status)
 
-      if (!remasterResponse.ok) {
-        throw new Error(result.error || 'Failed to remaster image')
+      let result
+      try {
+        const responseText = await remasterResponse.text()
+        console.log('Raw response:', responseText.substring(0, 200) + '...')
+        result = JSON.parse(responseText)
+      } catch (jsonError) {
+        console.error('JSON parse error:', jsonError)
+        throw new Error('Invalid response format from server. Please try again.')
       }
 
-      if (result.success && result.images.length > 0) {
+      if (!remasterResponse.ok) {
+        console.error('API error:', result)
+        throw new Error(result.error || `Server error: ${remasterResponse.status}`)
+      }
+
+      if (result.success && result.images && result.images.length > 0) {
+        console.log('Remaster successful, saving images:', result.images.length)
         // Save remastered images to localStorage
         result.images.forEach((image: GeneratedImage) => {
           saveImageToStorage(image, result, false)
@@ -371,11 +393,16 @@ Keep the core concept but make it uniquely suited for ${profile.name}'s brand.`,
         // Switch to images tab to show results
         setActiveSection('images')
       } else {
-        throw new Error(result.error || 'Remaster failed')
+        console.error('Remaster failed:', result)
+        throw new Error(result.error || 'Remaster failed - no images generated')
       }
     } catch (err) {
-      console.error('Remaster error:', err)
-      setError(err instanceof Error ? err.message : 'An unknown error occurred during remastering')
+      console.error('Remaster error details:', err)
+      if (err instanceof Error) {
+        setError(`Remaster failed: ${err.message}`)
+      } else {
+        setError('An unknown error occurred during remastering. Please try again.')
+      }
     } finally {
       setIsRemasteringImage(null)
     }

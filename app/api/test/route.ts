@@ -3,11 +3,28 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, inputImage, logoImage, mode, userName, postDescription, brandColors } = await request.json();
+    let requestBody;
+    try {
+      requestBody = await request.json();
+    } catch (jsonError) {
+      console.error('JSON parsing error:', jsonError);
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
+
+    const { prompt, inputImage, logoImage, mode, userName, postDescription, brandColors } = requestBody;
+
+    console.log('Request mode:', mode);
+    console.log('Has prompt:', !!prompt);
+    console.log('Has inputImage:', !!inputImage);
+    console.log('Has userName:', !!userName);
+    console.log('Has postDescription:', !!postDescription);
 
     if (!prompt && mode !== 'social-media-post' && mode !== 'social-media-post-with-logo') {
       return NextResponse.json(
-        { error: 'Prompt is required' },
+        { error: 'Prompt is required for image editing mode' },
         { status: 400 }
       );
     }
